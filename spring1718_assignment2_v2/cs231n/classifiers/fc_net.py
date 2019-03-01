@@ -187,7 +187,18 @@ class FullyConnectedNet(object):
         # beta2, etc. Scale parameters should be initialized to ones and shift     #
         # parameters should be initialized to zeros.                               #
         ############################################################################
-        pass
+        self.params["W1"] = np.random.normal(0.0, weight_scale, (input_dim, hidden_dims[0]))
+        self.params["b1"] = np.zeros((1, hidden_dims[0]))
+        num_params_inside_hl = len(hidden_dims) - 1
+        for i in range(num_params_inside_hl):
+            index = str(i + 2)
+            wx, bx = "W{}".format(index), "b{}".format(index)
+            self.params[wx] = np.random.normal(0.0, weight_scale, (hidden_dims[i], hidden_dims[i + 1]))
+            self.params[bx] = np.zeros((1, hidden_dims[i + 1]))
+        index = str(self.num_layers)
+        wx, bx = "W{}".format(index), "b{}".format(index)
+        self.params[wx] = np.random.normal(0.0, weight_scale, (hidden_dims[num_params_inside_hl], num_classes))
+        self.params[bx] = np.zeros((1, num_classes))
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -246,7 +257,21 @@ class FullyConnectedNet(object):
         # self.bn_params[1] to the forward pass for the second batch normalization #
         # layer, etc.                                                              #
         ############################################################################
-        pass
+        layer1_output, layer1_cache = affine_relu_forward(X, self.params["W1"], self.params["b1"])
+        temp_output, temp_cache = list([None]), list([None])
+        temp_output.append(layer1_output)
+        temp_cache.append(layer1_cache)
+        for i in range(self.num_layers - 2):
+            index = str(i + 2)
+            wx, bx = "W{}".format(index), "b{}".format(index)
+            layerx_output, layerx_cache = affine_relu_forward(temp_output[i + 1], self.params[wx], self.params[bx])
+            temp_output.append(layerx_output)
+            temp_cache.append(layerx_cache)
+        index = str(self.num_layers)
+        wx, bx = "W{}".format(index), "b{}".format(index)
+        scores, layern_cache = affine_forward(temp_output[self.num_layers - 1], self.params[wx], self.params[bx])
+        temp_output.append(scores)
+        temp_cache.append(layern_cache)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -269,7 +294,28 @@ class FullyConnectedNet(object):
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
-        pass
+        loss, dout = softmax_loss(scores, y)
+        regularization = 0
+        for i in range(self.num_layers):
+            regularization += (0.5 * self.reg * np.sum(self.params["W{}".format(str(i + 1))] ** 2))
+        loss += regularization
+        index = str(self.num_layers)
+        wx, bx = "W{}".format(index), "b{}".format(index)
+        dout, grads[wx], grads[bx] = affine_backward(dout, temp_cache[self.num_layers])
+        for i in range(self.num_layers - 1, 0, -1):
+            index = str(i)
+            wx, bx = "W{}".format(index), "b{}".format(index)
+            dout, grads[wx], grads[bx] = affine_relu_backward(dout, temp_cache[i])
+        '''
+        The gradients must be increased by a factor of (2*lambda*W) because of the derivative of the regularization
+        used.
+        '''
+        # The 0.5 (included factor to simplify the expression for the gradient) must be also considered.
+        partial_adding_factor = 0.5 * 2 * self.reg
+        for i in range(self.num_layers):
+            index = str(i + 1)
+            wx = "W{}".format(index)
+            grads[wx] += partial_adding_factor * self.params[wx]
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
