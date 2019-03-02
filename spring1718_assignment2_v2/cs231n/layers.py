@@ -181,7 +181,15 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # Referencing the original paper (https://arxiv.org/abs/1502.03167)   #
         # might prove to be helpful.                                          #
         #######################################################################
-        pass
+        mu = np.mean(x, axis=0)
+        var = float(1 / N) * np.sum((x - mu) ** 2, axis=0)
+        x_norm = (x - mu) / np.sqrt(var + eps)
+        # Scale and Shift.
+        y = gamma * x_norm + beta
+        out = y
+        cache = (x, mu, var, eps, x_norm, gamma, beta)
+        running_mean = momentum * running_mean + (1 - momentum) * mu
+        running_var = momentum * running_var + (1 - momentum) * var
         #######################################################################
         #                           END OF YOUR CODE                          #
         #######################################################################
@@ -192,7 +200,10 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # then scale and shift the normalized data using gamma and beta.      #
         # Store the result in the out variable.                               #
         #######################################################################
-        pass
+        x_norm = (x - running_mean) / np.sqrt(running_var + eps)
+        # Scale and Shift.
+        y = gamma * x_norm + beta
+        out = y
         #######################################################################
         #                          END OF YOUR CODE                           #
         #######################################################################
