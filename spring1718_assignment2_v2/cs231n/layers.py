@@ -241,7 +241,50 @@ def batchnorm_backward(dout, cache):
     # Referencing the original paper (https://arxiv.org/abs/1502.03167)       #
     # might prove to be helpful.                                              #
     ###########################################################################
-    pass
+    x, mu, var, eps, x_norm, gamma, beta = cache
+    N, D = dout.shape
+
+    dbeta_partial = 1.0
+    dbeta = np.sum(dout * dbeta_partial, axis=0)
+
+    dgamma_x_norm_partial = 1.0
+    dgamma_x_norm = dout * dgamma_x_norm_partial
+
+    dgamma_partial = x_norm
+    dgamma = np.sum((dgamma_x_norm * dgamma_partial), axis=0)
+
+    dx_norm_partial = gamma
+    dx_norm = dgamma_x_norm * dx_norm_partial
+
+    dinv_sqrt_var_eps_partial = x - mu
+    dinv_sqrt_var_eps = np.sum(dx_norm * dinv_sqrt_var_eps_partial, axis=0)
+
+    dx_minus_mu_partial = 1.0 / np.sqrt(var + eps)
+    dx_minus_mu = dx_norm * dx_minus_mu_partial
+
+    dsqrt_var_eps_partial = (- 1.0) / (var + eps)
+    dsqrt_var_eps = dinv_sqrt_var_eps * dsqrt_var_eps_partial
+
+    dvar_partial = 0.5 * (1.0 / np.sqrt(var + eps))
+    dvar = dsqrt_var_eps * dvar_partial
+
+    dsquared_x_minus_mu_partial = 1.0 / N
+    dsquared_x_minus_mu = dvar * (dsquared_x_minus_mu_partial * np.ones((N, D)))
+
+    dx_minus_mu_partial_2 = 2.0 * (x - mu)
+    dx_minus_mu_2 = dsquared_x_minus_mu * dx_minus_mu_partial_2
+
+    dmu_partial = - 1.0
+    dmu = np.sum((dx_minus_mu_2 + dx_minus_mu) * dmu_partial, axis=0)
+
+    dx_partial = 1.0
+    dx = (dx_minus_mu_2 + dx_minus_mu) * dx_partial
+
+    dx_partial_2 = 1.0 / N
+    dx_2 = dmu * (dx_partial_2 * np.ones((N, D)))
+
+    # Adds all gradients flowing into X.
+    dx = dx + dx_2
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
