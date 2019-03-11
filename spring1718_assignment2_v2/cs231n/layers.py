@@ -265,11 +265,11 @@ def batchnorm_backward(dout, cache):
     dsqrt_var_eps_partial = (- 1.0) / (var + eps)
     dsqrt_var_eps = dinv_sqrt_var_eps * dsqrt_var_eps_partial
 
-    dvar_partial = 0.5 * (1.0 / np.sqrt(var + eps))
-    dvar = dsqrt_var_eps * dvar_partial
+    dvar_eps_partial = 0.5 * (1.0 / np.sqrt(var + eps))
+    dvar_eps = dsqrt_var_eps * dvar_eps_partial
 
     dsquared_x_minus_mu_partial = 1.0 / N
-    dsquared_x_minus_mu = dvar * (dsquared_x_minus_mu_partial * np.ones((N, D)))
+    dsquared_x_minus_mu = dvar_eps * (dsquared_x_minus_mu_partial * np.ones((N, D)))
 
     dx_minus_mu_partial_2 = 2.0 * (x - mu)
     dx_minus_mu_2 = dsquared_x_minus_mu * dx_minus_mu_partial_2
