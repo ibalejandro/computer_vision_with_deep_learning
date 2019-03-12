@@ -357,7 +357,16 @@ def layernorm_forward(x, gamma, beta, ln_param):
     # transformations you could perform, that would enable you to copy over   #
     # the batch norm code and leave it almost unchanged?                      #
     ###########################################################################
-    pass
+    N, D = x.shape
+    x = x.T
+    mu = np.mean(x, axis=0)
+    var = float(1 / D) * np.sum((x - mu) ** 2, axis=0)
+    x_norm = (x - mu) / np.sqrt(var + eps)
+    x_norm = x_norm.T
+    # Scale and Shift.
+    y = gamma * x_norm + beta
+    out = y
+    cache = (x, mu, var, eps, x_norm, gamma, beta)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -388,7 +397,52 @@ def layernorm_backward(dout, cache):
     # implementation of batch normalization. The hints to the forward pass    #
     # still apply!                                                            #
     ###########################################################################
-    pass
+    x, mu, var, eps, x_norm, gamma, beta = cache
+    N, D = dout.shape
+
+    dbeta_partial = 1.0
+    dbeta = np.sum(dout * dbeta_partial, axis=0)  # 1,D.
+
+    dgamma_x_norm_partial = 1.0
+    dgamma_x_norm = dout * dgamma_x_norm_partial  # N,D.
+
+    dgamma_partial = x_norm
+    dgamma = np.sum((dgamma_x_norm * dgamma_partial), axis=0)  # 1,D.
+
+    dx_norm_partial = gamma
+    dx_norm = dgamma_x_norm * dx_norm_partial
+    dx_norm = dx_norm.T  # D,N.
+
+    dinv_sqrt_var_eps_partial = x - mu  # D,N.
+    dinv_sqrt_var_eps = np.sum(dx_norm * dinv_sqrt_var_eps_partial, axis=0)  # 1,N.
+
+    dx_minus_mu_partial = 1.0 / np.sqrt(var + eps)
+    dx_minus_mu = dx_norm * dx_minus_mu_partial  # D,N.
+
+    dsqrt_var_eps_partial = (- 1.0) / (var + eps)
+    dsqrt_var_eps = dinv_sqrt_var_eps * dsqrt_var_eps_partial  # 1,N.
+
+    dvar_eps_partial = 0.5 * (1.0 / np.sqrt(var + eps))
+    dvar_eps = dsqrt_var_eps * dvar_eps_partial  # 1,N.
+
+    dsquared_x_minus_mu_partial = 1.0 / D
+    dsquared_x_minus_mu = dvar_eps * (dsquared_x_minus_mu_partial * np.ones((D, N)))  # D,N.
+
+    dx_minus_mu_partial_2 = 2.0 * (x - mu)
+    dx_minus_mu_2 = dsquared_x_minus_mu * dx_minus_mu_partial_2  # D,N.
+
+    dmu_partial = - 1.0
+    dmu = np.sum((dx_minus_mu_2 + dx_minus_mu) * dmu_partial, axis=0)  # 1, N.
+
+    dx_partial = 1.0
+    dx = (dx_minus_mu_2 + dx_minus_mu) * dx_partial  # D,N.
+
+    dx_partial_2 = 1.0 / D
+    dx_2 = dmu * (dx_partial_2 * np.ones((D, N)))  # D,N.
+
+    # Adds all gradients flowing into X.
+    dx = dx + dx_2
+    dx = dx.T  # N,D.
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
