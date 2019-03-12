@@ -273,6 +273,10 @@ class FullyConnectedNet(object):
                                                                              self.params["beta1"], self.bn_params[0])
         else:
             layer1_output, layer1_cache = affine_relu_forward(X, self.params["W1"], self.params["b1"])
+        if self.use_dropout:
+            temp_dropout_cache = list([None])
+            layer1_output, layer1_dropout_cache = dropout_forward(layer1_output, self.dropout_param)
+            temp_dropout_cache.append(layer1_dropout_cache)
         temp_output, temp_cache = list([None]), list([None])
         temp_output.append(layer1_output)
         temp_cache.append(layer1_cache)
@@ -288,6 +292,9 @@ class FullyConnectedNet(object):
                                                                                  self.bn_params[i + 1])
             else:
                 layerx_output, layerx_cache = affine_relu_forward(temp_output[i + 1], self.params[wx], self.params[bx])
+            if self.use_dropout:
+                layerx_output, layerx_dropout_cache = dropout_forward(layerx_output, self.dropout_param)
+                temp_dropout_cache.append(layerx_dropout_cache)
             temp_output.append(layerx_output)
             temp_cache.append(layerx_cache)
         index = str(self.num_layers)
@@ -330,6 +337,8 @@ class FullyConnectedNet(object):
             # wx, bx = "W{}".format(index), "b{}".format(index)
             wx, bx, gammax, betax = "W{}".format(index), "b{}".format(index), "gamma{}".format(index), \
                                     "beta{}".format(index)
+            if self.use_dropout:
+                dout = dropout_backward(dout, temp_dropout_cache[i])
             if self.normalization == 'batchnorm':
                 dout, grads[wx], grads[bx], grads[gammax], grads[betax] = self\
                     .affine_batchnorm_relu_backward(dout, temp_cache[i])
