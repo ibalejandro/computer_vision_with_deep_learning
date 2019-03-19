@@ -610,7 +610,35 @@ def conv_backward_naive(dout, cache):
     ###########################################################################
     # TODO: Implement the convolutional backward pass.                        #
     ###########################################################################
-    pass
+    x, w, b, conv_param = cache
+    N, C, H, W = x.shape
+    F, _, HH, WW = w.shape
+    stride = conv_param.get("stride", 1)
+    pad = conv_param.get("pad", 0)
+    # H_prime and W_prime must be integers.
+    H_prime = 1 + (H + 2 * pad - HH) // stride
+    W_prime = 1 + (W + 2 * pad - WW) // stride
+    x_with_pad = np.pad(x, ((0, 0), (0, 0), (pad, pad), (pad, pad)), 'constant', constant_values=0)
+    # The output was calculated using x_with_pad.
+    dx_with_pad = np.zeros_like(x_with_pad)
+    dw = np.zeros_like(w)
+    db = np.zeros_like(b)
+    for n in range(N):
+        for f in range(F):
+            db[f] += np.sum(dout[n, f, :, :])
+            for i in range(H_prime):
+                for j in range(W_prime):
+                    patch_h_begin = i * stride
+                    patch_h_end = patch_h_begin + HH
+                    patch_w_begin = j * stride
+                    patch_w_end = patch_w_begin + WW
+                    upstream_grad = dout[n, f, i, j]
+                    dw[f, :, :, :] += upstream_grad * x_with_pad[n, :, patch_h_begin:patch_h_end,
+                                                      patch_w_begin:patch_w_end]
+                    dx_with_pad[n, :, patch_h_begin:patch_h_end, patch_w_begin:patch_w_end] += upstream_grad * \
+                                                                                               w[f, :, :, :]
+    # Extracts dx from dx_with_pad (i.e. eliminates padding).
+    dx = dx_with_pad[:, :, pad:(pad + H), pad:(pad + W)]
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -640,7 +668,23 @@ def max_pool_forward_naive(x, pool_param):
     ###########################################################################
     # TODO: Implement the max-pooling forward pass                            #
     ###########################################################################
-    pass
+    N, C, H, W = x.shape
+    pool_height = pool_param.get("pool_height", 2)
+    pool_width = pool_param.get("pool_width", 2)
+    stride = pool_param.get("stride", 2)
+    H_prime = 1 + (H - pool_height) // stride
+    W_prime = 1 + (W - pool_width) // stride
+    out = np.zeros((N, C, H_prime, W_prime))
+    for n in range(N):
+        for c in range(C):
+            for i in range(H_prime):
+                for j in range(W_prime):
+                    patch_h_begin = i * stride
+                    patch_h_end = patch_h_begin + pool_height
+                    patch_w_begin = j * stride
+                    patch_w_end = patch_w_begin + pool_width
+                    max_value = np.max(x[n, c, patch_h_begin:patch_h_end, patch_w_begin:patch_w_end])
+                    out[n, c, i, j] = max_value
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -663,7 +707,29 @@ def max_pool_backward_naive(dout, cache):
     ###########################################################################
     # TODO: Implement the max-pooling backward pass                           #
     ###########################################################################
-    pass
+    x, pool_param = cache
+    N, C, H, W = x.shape
+    pool_height = pool_param.get("pool_height", 2)
+    pool_width = pool_param.get("pool_width", 2)
+    stride = pool_param.get("stride", 2)
+    H_prime = 1 + (H - pool_height) // stride
+    W_prime = 1 + (W - pool_width) // stride
+    dx = np.zeros_like(x)
+    for n in range(N):
+        for c in range(C):
+            for i in range(H_prime):
+                for j in range(W_prime):
+                    patch_h_begin = i * stride
+                    patch_h_end = patch_h_begin + pool_height
+                    patch_w_begin = j * stride
+                    patch_w_end = patch_w_begin + pool_width
+                    upstream_grad = dout[n, c, i, j]
+                    patch = x[n, c, patch_h_begin:patch_h_end, patch_w_begin:patch_w_end]
+                    deriv = np.zeros_like(patch)
+                    # Gets the (i, j) position of the max value of the patch.
+                    ind = np.unravel_index(np.argmax(patch, axis=None), patch.shape)
+                    deriv[ind] = upstream_grad
+                    dx[n, c, patch_h_begin:patch_h_end, patch_w_begin:patch_w_end] = deriv
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
