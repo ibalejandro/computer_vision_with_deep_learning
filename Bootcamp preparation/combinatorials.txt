@@ -1,0 +1,8 @@
+1. ¿El subconjunto que hay que formar es de todos los elementos?
+2. ¿Es importante el orden?
+3. ¿Se pueden repetir los elementos dentro del sub-conjunto que se quiere formar?
+   [Dice si la operación es con repetición o sin repetición].
+
+- NO - NO - X --> Combinación.
+- NO - SI - X --> Variación.
+- SI - SI - X --> Permutación.
